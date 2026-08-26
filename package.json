@@ -46,7 +46,7 @@
     ],
     "productName": "My Creation",
     "copyright": "Copyright © 2026 My Creation. Tous droits réservés.",
-    "artifactName": "${productName} Setup ${version}.${ext}",
+    "artifactName": "My-Creation-Setup-${version}.${ext}",
     "directories": {
       "output": "release",
       "buildResources": "build"

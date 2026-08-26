@@ -71,11 +71,12 @@ local (`git show fe6191f:electron/keys/private.pem`). La rotation la rend
 inoffensive pour les licences futures, mais si le dépôt est publié un jour,
 purger l'historique (`git filter-repo`) ou publier un dépôt neuf sans historique.
 
-✅ **RE-VÉRIFIÉ le 26/08/2026** (`node scripts/verify-rsa-state.cjs`, lecture
+✅ **RE-VÉRIFIÉ le 26/08/2026 à 21:53** (`node scripts/verify-rsa-state.cjs`, lecture
 seule, aucune régénération) : **10/10 PASS** — paire ACTIVE intacte
 (fp `c5fad623…` confirmé sur public.pem + clé publique dérivée de la privée +
 roundtrip signature/vérification + clé embarquée dans dist-electron + aucun
-matériel de clé privée dans dist/dist-electron/release y compris app.asar).
+matériel de clé privée dans dist/dist-electron/release y compris app.asar
+— **P2.10 inclus : app.asar 19 827 755 o re-vérifié, 1 bloc ACTIVE seul**).
 **Règle** : ne régénérer QUE si un test prouve une corruption/compromission ;
 toute licence Lifetime commerciale doit être signée avec cette paire active
 (License Generator uniquement).
@@ -203,14 +204,15 @@ une signature commerciale authentique dans la communication produit.
 
 ## 6. Scan sécurité final
 
-✅ **TERMINÉ ET VÉRIFIÉ** — rejoué sur le build final corrigé
-(`scripts/security-scan.cjs`) :
+✅ **TERMINÉ ET VÉRIFIÉ** — rejoué le **26/08 à 21:53** sur build post-rotation
+(`scripts/security-scan.cjs` + `scripts/verify-rsa-state.cjs`) — **P2.10 BLOQUANT LEVÉ** :
 - périmètre : `dist/`, `dist-electron/`, `release/` (win-unpacked + **app.asar**
-  lu intégralement + installateur), 202 fichiers
+  lu intégralement + installateur), **203 fichiers** (393 fichiers pour verify-rsa-state)
 - résultat : **0 détection** — pas de private.pem, pas d'empreinte des clés
-  retirées, pas de secret/service_role Supabase, pas de token Gumroad, pas de
+  retirées (`103d8e11`, `af0560`), pas de secret/service_role Supabase, pas de token Gumroad, pas de
   mot de passe BDD, pas de clé IA en dur
-- clé publique ACTIVE embarquée vérifiée (fp `c5fad623…`)
+- **P2.10** : `release/win-unpacked/resources/app.asar` (19 827 755 o, 26/08 21:53) inspecté physiquement : **1 seul bloc PEM = fp `c5fad623…` ACTIVE**, 0 bloc RETIRÉ, chaîne `103d8e11` absente — l'artefact obsolète du 19:01 est écrasé ; `security-scan` **203 fichiers 0 détection PASS**, `verify-rsa-state` **10/10 PASS**
+- clé publique ACTIVE embarquée vérifiée (fp `c5fad623…`, `dist-electron/keys/public.pem` + app.asar)
 - Product IDs Gumroad publics présents (attendus)
 - `npm audit` : **0 vulnérabilité** (après `npm audit fix` du 26/08 :
   `electron-updater` 6.6.2 → **6.8.9**, corrige GHSA-p2f4-r6v6-j797 — fuite
@@ -277,10 +279,10 @@ propre, tester l'EXE installé (compte, licence, chat, terminal, preview).
 - `RELEASE.md` créé : processus release N/N+1, migration provider GitHub,
   préparation signature Windows.
 
-**Re-vérifications réelles session 2** : typecheck PASS · lint PASS · npm test
+**Re-vérifications réelles session 2 + P2.10 26/08 21:53** : typecheck PASS · lint PASS · npm test
 (Providers/Runtime/Anti-falsification 9/9/Renderer/Application PASS, Agent 15/16)
-· build + installateur régénérés · verify-rsa-state 10/10 PASS · security-scan
-202 fichiers 0 détection · test-package **51/51 PASS** · test-installer
+· build + installateur régénérés · verify-rsa-state **10/10 PASS** (393 fichiers) · security-scan
+**203 fichiers 0 détection PASS (P2.10 LEVÉ — app.asar 1 bloc c5fad623 seul)** · test-package **51/51 PASS** · test-installer
 **31/31 PASS** · latest.yml SHA512 = SHA512 Setup.exe (MATCH) · Authenticode :
 Setup et EXE **NotSigned** · Product IDs fqcefy/rbdvn + api.gumroad.com présents
 dans app.asar · Supabase `/auth/v1/health` HTTP 200 (avec clé publishable).

@@ -1,6 +1,0 @@
-export { AppShell } from './AppShell'
-export { Titlebar } from './Titlebar'
-export { CommandBar } from './CommandBar'
-export { ActivityBar } from './ActivityBar'
-export { Sidebar, SidebarGroup } from './Sidebar'
-export { Statusbar } from './Statusbar'

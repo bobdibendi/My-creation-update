@@ -1,6 +1,6 @@
 # TODO — FINALISATION AVANT COMMERCIALISATION
 
-> État au **26/08/2026**. Légende :
+> État au **26/08/2026 22:36** (P2.10 levé + P5/P6 updater corrigé). Légende :
 > - ✅ **TERMINÉ ET VÉRIFIÉ** — exécuté et constaté localement lors de cette session
 > - 🟡 **PASS LOCAL UNIQUEMENT** — validé sur mocks/serveurs locaux, pas en conditions réelles
 > - 🔵 **ACTION EXTERNE** — à exécuter par l'utilisateur (compte, achat, publication…)
@@ -144,6 +144,12 @@ correctes SI yearly est désactivé côté Gumroad.
 
 ### 🐛 BUG BLOQUANT CORRIGÉ (26/08/2026) — « Cannot find module 'electron-updater' »
 
+### 🐛 BUG BLOQUANT P5/P6 CORRIGÉ (26/08/2026 22:36) — mismatch `artifactName` ↔ `latest.yml`
+- **Audit P5 lecture seule** : `package.json:49` `artifactName="${productName} Setup ${version}.${ext}"` → fichier `My Creation Setup 1.0.0.exe` (espaces) mais `release/latest.yml:3` `url: My-Creation-Setup-1.0.0.exe` (tirets) + SHA512 `s2Ux…` vs `NVdL…` — `latest.yml` ne pointait pas vers le fichier réel → `autoUpdater` en 404.
+- **Cause** : `electron-builder` normalise l'URL GitHub en tirets ; avec des espaces le fichier et le YAML divergent.
+- **Correction P6** : `package.json:49` → `artifactName="My-Creation-Setup-${version}.${ext}"` (sans espace, tirets). Rebuild `npm run dist` (22:36) → `release/My-Creation-Setup-1.0.0.exe` (104 726 537 o) + `latest.yml` `url/path: My-Creation-Setup-1.0.0.exe` + **SHA512 MATCH true** (`s2UxCUwGUI8VuE6V1dse…`), `app.asar` 1 bloc PEM `c5fad623…` ACTIVE, `verify-rsa-state 10/10`, `security-scan 202 fichiers 0 détection`, `typecheck PASS`, `build PASS`. Commit `10df1b3` sur `recovery` (devant `origin/main`).
+- **Vérification** : `node -e` SHA512 calculé = SHA512 YAML, `app.asar` PEM unique ACTIVE, `origin` = `https://github.com/bobdibendi/My-creation-update.git` existe ( `git ls-remote` HEAD `5793a396` ), `build.publish` GitHub OK.
+
 - **Symptôme** : l'EXE production crashait au lancement (erreur main process,
   `MODULE_NOT_FOUND` depuis `app.asar/dist-electron/updater.js`).
 - **Cause exacte** : `electron-updater` avait été retiré de
@@ -166,10 +172,7 @@ correctes SI yearly est désactivé côté Gumroad.
   LicenseService / Agent / Monaco / Runtime ; auto-update NON désactivé ;
   aucun try/catch masquant.
 
-🔴 **RESTE À FAIRE — ACTION EXTERNE obligatoire** : **aucun remote Git n'existe**
-(revérifié le 26/08 : `git remote -v` vide, CLI `gh` absente) et
-`build.publish` pointe encore vers un provider `generic` fictif
-(`https://example.com/cursor-clone/updates/`). Procédure :
+🔴 **RESTE À FAIRE — ACTION EXTERNE obligatoire** : remote Git **existe désormais** (`origin https://github.com/bobdibendi/My-creation-update.git`, `git ls-remote` HEAD `5793a396`) et `build.publish` pointe vers `github bobdibendi/My-creation-update` (corrigé) — mais **aucune Release GitHub n'est publiée** et `GH_TOKEN` non configuré. Procédure :
 1. Créer le repo GitHub public, y pousser le projet.
 2. Dans `package.json > build.publish` : `{ "provider": "github", "owner": "...", "repo": "..." }`.
 3. Rebuild + `electron-builder --publish always` avec `GH_TOKEN`.
@@ -279,11 +282,10 @@ propre, tester l'EXE installé (compte, licence, chat, terminal, preview).
 - `RELEASE.md` créé : processus release N/N+1, migration provider GitHub,
   préparation signature Windows.
 
-**Re-vérifications réelles session 2 + P2.10 26/08 21:53** : typecheck PASS · lint PASS · npm test
-(Providers/Runtime/Anti-falsification 9/9/Renderer/Application PASS, Agent 15/16)
-· build + installateur régénérés · verify-rsa-state **10/10 PASS** (393 fichiers) · security-scan
-**203 fichiers 0 détection PASS (P2.10 LEVÉ — app.asar 1 bloc c5fad623 seul)** · test-package **51/51 PASS** · test-installer
-**31/31 PASS** · latest.yml SHA512 = SHA512 Setup.exe (MATCH) · Authenticode :
+**Re-vérifications réelles session 2 + P2.10 26/08 21:53 → P5/P6 26/08 22:36** : typecheck PASS · lint PASS · npm test
+(Providers/Runtime/Anti-falsification 9/9/Renderer/Application PASS, Agent 15/16) + suites licences 22/22, 20/20, 9/9, quota 27/27, plans 30/30, gumroad 15/15 PASS
+· build + installateur régénérés (artifactName `My-Creation-Setup-${version}.ext` → `My-Creation-Setup-1.0.0.exe`) · verify-rsa-state **10/10 PASS** (392 fichiers) · security-scan
+**202 fichiers 0 détection PASS (P2.10 LEVÉ — app.asar 1 bloc c5fad623 seul)** · latest.yml SHA512 = SHA512 Setup.exe **MATCH true** (`s2Ux…`) · Authenticode :
 Setup et EXE **NotSigned** · Product IDs fqcefy/rbdvn + api.gumroad.com présents
 dans app.asar · Supabase `/auth/v1/health` HTTP 200 (avec clé publishable).
 
@@ -300,8 +302,19 @@ dans app.asar · Supabase `/auth/v1/health` HTTP 200 (avec clé publishable).
 | 9 | Décider du traitement de l'historique Git contenant l'ancienne clé (§2) avant toute publication du dépôt | CONFIG. MANUELLE |
 | 10 | Rejouer la suite Agent complète quand Top-Tools-Ai sera stable (15/16 aujourd'hui, timeout fournisseur réel sur « Site web complet ») | À REJOUER |
 
-> ~~Purger/archiver les anciens installateurs 1.x de `release/`~~ — **FAIT**
-> (vérifié le 26/08 : seul `My Creation Setup 1.0.0.exe` reste dans `release/`).
+> ~~Purger/archiver les anciens installateurs 1.x de `release/`~~ — **FAIT** (22:36 : seul `My-Creation-Setup-1.0.0.exe` reste dans `release/`, ancien `My Creation Setup 1.0.0.exe` supprimé, `MyCreation-Setup-1.0.1.exe` supprimé — artefactName normalisé).
+
+## 9. Verdict final P9 (lecture seule, 26/08 22:36)
+
+**NOT READY pour commercialisation** — code gelé **READY pour tests manuels** (P10).
+
+- **P2 RSA** : 10/10 PASS, paire ACTIVE `c5fad623…`, aucun secret embarqué, historique purgé en attente.
+- **P3/P4** : typecheck 0, lint 0, build PASS, suites 22/22 + 20/20 + 9/9 + 30/30 + 27/27 + 15/15 PASS, provider/runtime/antitamper PASS, app.asar 1 bloc ACTIVE seul — **0 bug applicatif détecté localement** → P4 sans correction.
+- **P5/P6 updater** : BLOQUANT corrigé (artifactName ↔ latest.yml MATCH true, SHA512 `s2Ux…`), `electron/updater.ts:67` `autoDownload=false`, `app.isPackaged` guard, `origin` GitHub configuré — **reste ACTION EXTERNE** : `GH_TOKEN` + `electron-builder --publish always` + Release 1.0.0 + bump 1.0.1 + test cycle complet (P7). Sans cela auto-update inerte mais non cassé.
+- **P7/P8** : non exécutable sans token/publication — procédure documentée, en attente validation utilisateur.
+- **Bloquants externes restants** (§8 #4, #7, #1, #2, #6) : Gumroad yearly, signature NotSigned, signup réel, Release E2E — tous hors code.
+
+**Verdict** : **NOT READY** (commercialisation bloquée par config externes) / **READY** (gel code pour tests manuels utilisateur, 22 points, sans modification jusqu'à validation).
 
 ## Limitations connues
 
